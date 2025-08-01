@@ -1,3 +1,4 @@
+# Обновлённый index.py — бот отправляет PDF-бриф лично @yudanov_g (ID 292012626)
 from http.server import BaseHTTPRequestHandler
 import json
 import os
@@ -11,8 +12,11 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 client = OpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
 
+ADMIN_CHAT_ID = 292012626  # @yudanov_g
+
 user_states = {}
 questions = [
+    "Как Вас зовут? Пожалуйста укажите свое ФИО, что бы мы знали как к Вам обращаться",
     "Как называется ваш проект или продукт?",
     "Какова основная цель продвижения?",
     "Кто является вашей целевой аудиторией?",
@@ -21,7 +25,7 @@ questions = [
     "Каких результатов вы ожидаете?",
     "Какой у вас рекламный бюджет?",
     "Какие сроки запуска проекта?",
-    "Есть ли дополнительная информация?"
+    "Оставьте Ваш номер телефона для связи."
 ]
 
 class handler(BaseHTTPRequestHandler):
@@ -39,7 +43,7 @@ class handler(BaseHTTPRequestHandler):
 
             if user_text == "/start":
                 state = {"step": 0, "answers": []}
-                reply = "Здравствуйте! Я помогу вам составить проектный бриф.\\n" + questions[0]
+                reply = "Здравствуйте! Я помогу вам составить проектный бриф.\n" + questions[0]
                 self.send_typing(chat_id)
                 self.send_message(chat_id, reply)
             else:
@@ -47,7 +51,8 @@ class handler(BaseHTTPRequestHandler):
                     state["answers"].append(user_text)
                     state["step"] += 1
                     if state["step"] < len(questions):
-                        prompt = f"Поблагодари пользователя за ответ и деликатно задай следующий вопрос:\\n'{questions[state['step']]}'"
+                        question_text = questions[state["step"]]
+                        prompt = f"Поблагодари пользователя за ответ и деликатно задай следующий вопрос:\n'{question_text}'"
                         ai_reply = self.generate_reply(prompt)
                         self.send_typing(chat_id)
                         self.send_message(chat_id, ai_reply)
@@ -56,10 +61,11 @@ class handler(BaseHTTPRequestHandler):
                         self.send_message(chat_id, "Спасибо! Я формирую бриф...")
                         brief_text = self.generate_brief(state["answers"])
                         pdf_path = self.create_pdf(brief_text)
-                        self.send_pdf(chat_id, pdf_path)
+                        self.send_pdf(ADMIN_CHAT_ID, pdf_path)
                         os.remove(pdf_path)
+                        self.send_message(chat_id, "Бриф отправлен менеджеру. Спасибо!")
                 else:
-                    self.send_message(chat_id, "Бриф уже составлен. Напишите /start, чтобы начать заново.")
+                    self.send_message(chat_id, "Бриф уже составлен. Ожидайте обратной связи в ближайшие 24 часа. Спасибо за обращение!")
 
             user_states[chat_id] = state
 
