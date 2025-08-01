@@ -118,7 +118,7 @@ class handler(BaseHTTPRequestHandler):
         # Скачать шрифт DejaVuSans, если не существует
         font_path = "/tmp/DejaVuSans.ttf"
         if not os.path.exists(font_path):
-            url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf"
+            url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/version_2_37/ttf/DejaVuSans.ttf"
             urllib.request.urlretrieve(url, font_path)
 
         pdf.add_font("DejaVu", "", font_path, uni=True)
