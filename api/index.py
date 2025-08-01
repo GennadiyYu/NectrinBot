@@ -1,4 +1,4 @@
-# index.py с расширенным логированием ДО и ПОСЛЕ отправки PDF
+# index.py с логированием и отловом ошибки при создании PDF
 from http.server import BaseHTTPRequestHandler
 import json
 import os
@@ -59,12 +59,17 @@ class handler(BaseHTTPRequestHandler):
                         self.send_typing(chat_id)
                         self.send_message(chat_id, "Спасибо! Я формирую бриф...")
                         brief_text = self.generate_brief(state["answers"])
-                        print("📄 Сгенерирован бриф:", brief_text[:100])
-                        pdf_path = self.create_pdf(brief_text)
-                        print("📄 PDF создан, путь:", pdf_path)
-                        self.send_pdf(ADMIN_CHAT_ID, pdf_path)
-                        os.remove(pdf_path)
-                        self.send_message(chat_id, "Бриф отправлен менеджеру. Спасибо!")
+                        print("📄 Сгенерирован бриф:", brief_text[:200])
+                        try:
+                            pdf_path = self.create_pdf(brief_text)
+                            print("📄 PDF создан, путь:", pdf_path)
+                            self.send_pdf(ADMIN_CHAT_ID, pdf_path)
+                            os.remove(pdf_path)
+                            self.send_message(chat_id, "Бриф отправлен менеджеру. Спасибо!")
+                        except Exception as e:
+                            print("❌ Ошибка при создании или отправке PDF:", str(e))
+                            self.send_message(chat_id, "Произошла ошибка при формировании брифа. Менеджер уведомлён.")
+
                 else:
                     self.send_message(chat_id, "Бриф уже составлен. Напишите /start, чтобы начать заново.")
 
