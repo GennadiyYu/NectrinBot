@@ -1,3 +1,3 @@
-# README.md
+# api/index.py
 
 # TODO: Реализовать логику
