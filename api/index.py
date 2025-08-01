@@ -2,12 +2,12 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import requests
-from openai import OpenAI
 
-# Создание клиента OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+MODEL = "openai/gpt-3.5-turbo"  # можно заменить на другие, например mistralai/mixtral
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -26,19 +26,30 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     print(f"📨 Сообщение от пользователя: {user_text}")
 
-                    # GPT-ответ (новый синтаксис)
-                    response = client.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": user_text}]
+                    # Запрос к OpenRouter
+                    response = requests.post(
+                        OPENROUTER_URL,
+                        headers={
+                            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": "https://nectarin.ru",  # желательно указывать свой домен
+                            "X-Title": "Nectarin AI Assistant"
+                        },
+                        json={
+                            "model": MODEL,
+                            "messages": [{"role": "user", "content": user_text}]
+                        }
                     )
-                    reply_text = response.choices[0].message.content.strip()
-                    print(f"🤖 Ответ GPT: {reply_text}")
+
+                    result = response.json()
+                    reply_text = result["choices"][0]["message"]["content"].strip()
+                    print(f"🤖 Ответ OpenRouter: {reply_text}")
 
                 except Exception as e:
-                    reply_text = f"Ошибка OpenAI: {str(e)}"
-                    print("❌ OpenAI error:", str(e))
+                    reply_text = f"Ошибка OpenRouter: {str(e)}"
+                    print("❌ Ошибка OpenRouter:", str(e))
 
-                # Отправка в Telegram
+                # Отправка ответа пользователю
                 tg_response = requests.post(TELEGRAM_API_URL, json={
                     "chat_id": chat_id,
                     "text": reply_text

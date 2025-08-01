@@ -1,9 +1,16 @@
-# Nectarin Telegram AI Bot — OpenAI Fixed Version
 
-1. Установи переменные окружения в Vercel:
-- OPENAI_API_KEY
-- TELEGRAM_TOKEN
+# Nectarin Telegram AI Bot — OpenRouter Version
 
-2. Импортируй проект и Redeploy
+✅ Работает с https://openrouter.ai — бесплатный API-доступ к GPT-3.5, Mixtral, Claude и др.
 
-3. Проверяй Vercel → Logs → Function Logs для отладки
+## Переменные окружения (в Vercel)
+
+- `OPENROUTER_API_KEY` — ключ с https://openrouter.ai
+- `TELEGRAM_TOKEN` — токен от @BotFather
+
+## Как использовать
+
+1. Импортируй в GitHub
+2. Задеплой на Vercel
+3. Пропиши Webhook:
+   https://api.telegram.org/bot<token>/setWebhook?url=https://<vercel-project>.vercel.app/api
