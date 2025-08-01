@@ -73,8 +73,7 @@ class handler(BaseHTTPRequestHandler):
         pdf.cell(200, 10, txt="Бриф от Nectarin", ln=True, align="C")
         for i, (q, a) in enumerate(zip(questions, answers), 1):
             pdf.ln(5)
-            pdf.multi_cell(0, 10, f"{i}. {q}\\nОтвет: {a}")
-Ответ: {a}")
+            pdf.multi_cell(0, 10, f"{i}. {q}\nОтвет: {a}")
         temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
         pdf.output(temp.name)
         return temp.name
