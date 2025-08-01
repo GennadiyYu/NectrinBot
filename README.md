@@ -1,15 +1,9 @@
-# Nectarin Telegram AI Bot (Vercel-ready)
+# Nectarin Telegram AI Bot — DEBUG Version
 
-## 🔧 Установка и деплой
+1. Установи переменные окружения в Vercel:
+- OPENAI_API_KEY
+- TELEGRAM_TOKEN
 
-1. Склонируй этот проект в GitHub
-2. Перейди на https://vercel.com/import/git и выбери репозиторий
-3. Установи переменные окружения:
-   - OPENAI_API_KEY — твой ключ OpenAI
-   - TELEGRAM_TOKEN — токен Telegram-бота (от @BotFather)
+2. Импортируй проект и Redeploy
 
-4. После успешного деплоя получи URL, например:
-   https://nectarin-bot.vercel.app/api
-
-5. Пропиши Webhook:
-   https://api.telegram.org/bot<твой_токен>/setWebhook?url=https://nectarin-bot.vercel.app/api
+3. Проверяй Vercel → Logs → Function Logs для отладки
