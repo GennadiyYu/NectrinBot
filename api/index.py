@@ -1,4 +1,4 @@
-# Обновлённый index.py с логированием отправки PDF в Telegram
+# index.py с расширенным логированием ДО и ПОСЛЕ отправки PDF
 from http.server import BaseHTTPRequestHandler
 import json
 import os
@@ -59,7 +59,9 @@ class handler(BaseHTTPRequestHandler):
                         self.send_typing(chat_id)
                         self.send_message(chat_id, "Спасибо! Я формирую бриф...")
                         brief_text = self.generate_brief(state["answers"])
+                        print("📄 Сгенерирован бриф:", brief_text[:100])
                         pdf_path = self.create_pdf(brief_text)
+                        print("📄 PDF создан, путь:", pdf_path)
                         self.send_pdf(ADMIN_CHAT_ID, pdf_path)
                         os.remove(pdf_path)
                         self.send_message(chat_id, "Бриф отправлен менеджеру. Спасибо!")
@@ -116,6 +118,7 @@ class handler(BaseHTTPRequestHandler):
         return temp.name
 
     def send_pdf(self, chat_id, pdf_path):
+        print("📤 Пытаюсь отправить PDF в Telegram...")
         with open(pdf_path, 'rb') as f:
             response = requests.post(f"{TELEGRAM_API_URL}/sendDocument", data={
                 "chat_id": chat_id
