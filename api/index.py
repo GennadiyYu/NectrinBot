@@ -1,11 +1,9 @@
-# index.py с Unicode-шрифтом для корректной PDF генерации на русском языке
 from http.server import BaseHTTPRequestHandler
 import json
 import os
 import requests
 from fpdf import FPDF
 import tempfile
-import urllib.request
 from openai import OpenAI
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -17,13 +15,15 @@ ADMIN_CHAT_ID = 292012626  # @yudanov_g
 
 user_states = {}
 questions = [
-    "Как вас зовут? Напишите ФИО",
-    "Наименование компнии\продукта?",
+    "Как называется ваш проект или продукт?",
+    "Какова основная цель продвижения?",
+    "Кто является вашей целевой аудиторией?",
+    "Кто ваши основные конкуренты?",
     "Какие каналы продвижения вы планируете использовать?",
     "Каких результатов вы ожидаете?",
-    "Какой у вас рекламный бюджет? Важно! В виду порога входа в агентство от 20 млн. руб в год.",
+    "Какой у вас рекламный бюджет?",
     "Какие сроки запуска проекта?",
-    "Оставьте любой удобный контакт для связи?"
+    "Есть ли дополнительная информация?"
 ]
 
 class handler(BaseHTTPRequestHandler):
@@ -41,7 +41,7 @@ class handler(BaseHTTPRequestHandler):
 
             if user_text == "/start":
                 state = {"step": 0, "answers": []}
-                reply = "Здравствуйте! Нужно ответить на несколько вопросов, что бы оценить горизонты нашего возможного сотрудничества.\n" + questions[0]
+                reply = "Здравствуйте! Я помогу вам составить проектный бриф.\n" + questions[0]
                 self.send_typing(chat_id)
                 self.send_message(chat_id, reply)
             else:
@@ -115,12 +115,7 @@ class handler(BaseHTTPRequestHandler):
     def create_pdf(self, text):
         pdf = FPDF()
         pdf.add_page()
-        # Скачать шрифт DejaVuSans, если не существует
-        font_path = "/tmp/DejaVuSans.ttf"
-        if not os.path.exists(font_path):
-            url = "https://github.com/dejavu-fonts/dejavu-fonts/raw/version_2_37/ttf/DejaVuSans.ttf"
-            urllib.request.urlretrieve(url, font_path)
-
+        font_path = os.path.join(os.path.dirname(__file__), "../fonts/DejaVuSans.ttf")
         pdf.add_font("DejaVu", "", font_path, uni=True)
         pdf.set_font("DejaVu", size=12)
         pdf.multi_cell(0, 10, text)
