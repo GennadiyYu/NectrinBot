@@ -39,8 +39,7 @@ class handler(BaseHTTPRequestHandler):
 
             if user_text == "/start":
                 state = {"step": 0, "answers": []}
-                reply = "Здравствуйте! Я помогу вам составить проектный бриф.
-" + questions[0]
+                reply = "Здравствуйте! Я помогу вам составить проектный бриф.\\n" + questions[0]
                 self.send_typing(chat_id)
                 self.send_message(chat_id, reply)
             else:
