@@ -2,9 +2,10 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import requests
-import openai
+from openai import OpenAI
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Создание клиента OpenAI
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
@@ -25,8 +26,8 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     print(f"📨 Сообщение от пользователя: {user_text}")
 
-                    # GPT-ответ
-                    response = openai.ChatCompletion.create(
+                    # GPT-ответ (новый синтаксис)
+                    response = client.chat.completions.create(
                         model="gpt-3.5-turbo",
                         messages=[{"role": "user", "content": user_text}]
                     )

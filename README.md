@@ -1,4 +1,4 @@
-# Nectarin Telegram AI Bot — DEBUG Version
+# Nectarin Telegram AI Bot — OpenAI Fixed Version
 
 1. Установи переменные окружения в Vercel:
 - OPENAI_API_KEY
