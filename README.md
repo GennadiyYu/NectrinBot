@@ -1,16 +1,16 @@
 
-# Nectarin Telegram AI Bot — OpenRouter Version
+# Nectarin AI Bot (PDF Brief Generator)
 
-✅ Работает с https://openrouter.ai — бесплатный API-доступ к GPT-3.5, Mixtral, Claude и др.
+## Что умеет:
+- Пошаговый бриф по 9 вопросам
+- Сбор всех ответов
+- Генерация PDF-файла с итогами
+- Отправка PDF прямо в Telegram
 
-## Переменные окружения (в Vercel)
-
-- `OPENROUTER_API_KEY` — ключ с https://openrouter.ai
-- `TELEGRAM_TOKEN` — токен от @BotFather
-
-## Как использовать
-
-1. Импортируй в GitHub
-2. Задеплой на Vercel
-3. Пропиши Webhook:
-   https://api.telegram.org/bot<token>/setWebhook?url=https://<vercel-project>.vercel.app/api
+## Как запустить:
+1. Развернуть проект на Vercel
+2. Добавить переменные:
+   - `OPENROUTER_API_KEY`
+   - `TELEGRAM_TOKEN`
+3. Прописать Webhook:
+   https://api.telegram.org/bot<token>/setWebhook?url=https://<project>.vercel.app/api

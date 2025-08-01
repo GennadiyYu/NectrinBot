@@ -2,65 +2,85 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import requests
+from fpdf import FPDF
+import tempfile
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "openai/gpt-3.5-turbo"  # можно заменить на другие, например mistralai/mixtral
+MODEL = "openai/gpt-3.5-turbo"
+
+user_states = {}
+
+questions = [
+    "Как называется ваш проект или продукт?",
+    "Какова основная цель продвижения?",
+    "Кто является вашей целевой аудиторией?",
+    "Кто ваши основные конкуренты?",
+    "Какие каналы продвижения вы планируете использовать?",
+    "Каких результатов вы ожидаете?",
+    "Какой у вас рекламный бюджет?",
+    "Какие сроки запуска проекта?",
+    "Есть ли дополнительная информация?"
+]
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
-            update = json.loads(body)
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+        update = json.loads(body)
 
-            print("🔹 Получен update:", json.dumps(update, indent=2))
+        message = update.get("message", {})
+        chat_id = message.get("chat", {}).get("id")
+        user_text = message.get("text", "")
 
-            message = update.get("message", {})
-            chat_id = message.get("chat", {}).get("id")
-            user_text = message.get("text", "")
+        if chat_id:
+            state = user_states.get(chat_id, {"step": 0, "answers": []})
 
-            if chat_id and user_text:
-                try:
-                    print(f"📨 Сообщение от пользователя: {user_text}")
+            if user_text == "/start":
+                state = {"step": 0, "answers": []}
+                reply = "Привет! Я помогу составить бриф. " + questions[0]
+            else:
+                if state["step"] < len(questions):
+                    state["answers"].append(user_text)
+                    state["step"] += 1
+                    if state["step"] < len(questions):
+                        reply = questions[state["step"]]
+                    else:
+                        reply = "Спасибо! Формирую бриф в PDF..."
+                        pdf_path = self.create_pdf(state["answers"])
+                        self.send_pdf(chat_id, pdf_path)
+                        os.remove(pdf_path)
+                else:
+                    reply = "Бриф уже собран. Напишите /start, чтобы начать заново."
 
-                    # Запрос к OpenRouter
-                    response = requests.post(
-                        OPENROUTER_URL,
-                        headers={
-                            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                            "Content-Type": "application/json",
-                            "HTTP-Referer": "https://nectarin.ru",  # желательно указывать свой домен
-                            "X-Title": "Nectarin AI Assistant"
-                        },
-                        json={
-                            "model": MODEL,
-                            "messages": [{"role": "user", "content": user_text}]
-                        }
-                    )
+            user_states[chat_id] = state
 
-                    result = response.json()
-                    reply_text = result["choices"][0]["message"]["content"].strip()
-                    print(f"🤖 Ответ OpenRouter: {reply_text}")
-
-                except Exception as e:
-                    reply_text = f"Ошибка OpenRouter: {str(e)}"
-                    print("❌ Ошибка OpenRouter:", str(e))
-
-                # Отправка ответа пользователю
-                tg_response = requests.post(TELEGRAM_API_URL, json={
-                    "chat_id": chat_id,
-                    "text": reply_text
-                })
-
-                print(f"📤 Telegram API статус: {tg_response.status_code}")
-                print(f"📤 Telegram API ответ: {tg_response.text}")
-
-        except Exception as global_error:
-            print("🔥 Ошибка в Webhook:", str(global_error))
+            requests.post(f"{TELEGRAM_API_URL}/sendMessage", json={
+                "chat_id": chat_id,
+                "text": reply
+            })
 
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
+
+    def create_pdf(self, answers):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, txt="Бриф от Nectarin", ln=True, align="C")
+        for i, (q, a) in enumerate(zip(questions, answers), 1):
+            pdf.ln(5)
+            pdf.multi_cell(0, 10, f"{i}. {q}
+Ответ: {a}")
+        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        pdf.output(temp.name)
+        return temp.name
+
+    def send_pdf(self, chat_id, pdf_path):
+        with open(pdf_path, 'rb') as f:
+            requests.post(f"{TELEGRAM_API_URL}/sendDocument", data={
+                "chat_id": chat_id
+            }, files={"document": f})
