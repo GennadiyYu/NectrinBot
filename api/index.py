@@ -47,8 +47,7 @@ class handler(BaseHTTPRequestHandler):
                     state["answers"].append(user_text)
                     state["step"] += 1
                     if state["step"] < len(questions):
-                        prompt = f"Поблагодари пользователя за ответ и деликатно задай следующий вопрос:
-'{questions[state['step']]}'"
+                        prompt = f"Поблагодари пользователя за ответ и деликатно задай следующий вопрос:n'{questions[state['step']]}'"
                         ai_reply = self.generate_reply(prompt)
                         self.send_typing(chat_id)
                         self.send_message(chat_id, ai_reply)
