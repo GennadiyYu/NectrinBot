@@ -1,4 +1,4 @@
-# index.py с временным путём для шрифта (Vercel-friendly)
+# index.py с включённым AI-чатом после брифа
 from http.server import BaseHTTPRequestHandler
 import json
 import os
@@ -36,13 +36,19 @@ class handler(BaseHTTPRequestHandler):
         user_text = message.get("text", "")
 
         if chat_id:
-            state = user_states.get(chat_id, {"step": 0, "answers": []})
+            state = user_states.get(chat_id, {"step": 0, "answers": [], "mode": "brief"})
 
             if user_text == "/start":
-                state = {"step": 0, "answers": []}
+                state = {"step": 0, "answers": [], "mode": "brief"}
                 reply = "Здравствуйте! Я задам вам всего 6 вопросов, которые помогут понять горизонты нашего совместного сотрудничества.\n" + questions[0]
                 self.send_typing(chat_id)
                 self.send_message(chat_id, reply)
+
+            elif state.get("mode") == "chat":
+                self.send_typing(chat_id)
+                reply = self.chat_gpt_reply(user_text)
+                self.send_message(chat_id, reply)
+
             else:
                 if state["step"] < len(questions):
                     state["answers"].append(user_text)
@@ -64,6 +70,8 @@ class handler(BaseHTTPRequestHandler):
                             self.send_pdf(ADMIN_CHAT_ID, pdf_path)
                             os.remove(pdf_path)
                             self.send_message(chat_id, "Вижу, что он уже получил документ и скоро с вами свяжется. Ожидайте обратную связь в ближайшие 24 часа")
+                            state["mode"] = "chat"
+                            self.send_message(chat_id, "А пока мы ждём, я готов обсудить с вами любые вопросы по рекламе, маркетингу и продвижению.")
                         except Exception as e:
                             print("❌ Ошибка при создании или отправке PDF:", str(e))
                             self.send_message(chat_id, "Произошла ошибка. Менеджер уведомлён.")
@@ -98,7 +106,7 @@ class handler(BaseHTTPRequestHandler):
             return response.choices[0].message.content.strip()
         except Exception as e:
             return f"Ошибка AI: {str(e)}"
-            
+
     def chat_gpt_reply(self, message):
         prompt = f"Ты деловой и экспертный AI-ассистент по маркетингу. Ответь на вопрос клиента подробно и с эмпатией:\n{message}"
         return self.generate_reply(prompt)
