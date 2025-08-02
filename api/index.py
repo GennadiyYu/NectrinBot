@@ -99,7 +99,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return f"Ошибка AI: {str(e)}"
             
-             def chat_gpt_reply(self, message):
+    def chat_gpt_reply(self, message):
         prompt = f"Ты деловой и экспертный AI-ассистент по маркетингу. Ответь на вопрос клиента подробно и с эмпатией:\n{message}"
         return self.generate_reply(prompt)
 
