@@ -1,9 +1,11 @@
+# index.py с временным путём для шрифта (Vercel-friendly)
 from http.server import BaseHTTPRequestHandler
 import json
 import os
 import requests
 from fpdf import FPDF
 import tempfile
+import shutil
 from openai import OpenAI
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -17,12 +19,6 @@ user_states = {}
 questions = [
     "Как называется ваш проект или продукт?",
     "Какова основная цель продвижения?",
-    "Кто является вашей целевой аудиторией?",
-    "Кто ваши основные конкуренты?",
-    "Какие каналы продвижения вы планируете использовать?",
-    "Каких результатов вы ожидаете?",
-    "Какой у вас рекламный бюджет?",
-    "Какие сроки запуска проекта?",
     "Есть ли дополнительная информация?"
 ]
 
@@ -115,8 +111,12 @@ class handler(BaseHTTPRequestHandler):
     def create_pdf(self, text):
         pdf = FPDF()
         pdf.add_page()
-        font_path = os.path.join(os.path.dirname(__file__), "../fonts/DejaVuSans.ttf")
-        pdf.add_font("DejaVu", "", font_path, uni=True)
+        source_font = os.path.join(os.path.dirname(__file__), "../fonts/DejaVuSans.ttf")
+        tmp_font_dir = "/tmp/fonts"
+        os.makedirs(tmp_font_dir, exist_ok=True)
+        tmp_font = os.path.join(tmp_font_dir, "DejaVuSans.ttf")
+        shutil.copyfile(source_font, tmp_font)
+        pdf.add_font("DejaVu", "", tmp_font, uni=True)
         pdf.set_font("DejaVu", size=12)
         pdf.multi_cell(0, 10, text)
         temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
