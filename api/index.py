@@ -98,6 +98,10 @@ class handler(BaseHTTPRequestHandler):
             return response.choices[0].message.content.strip()
         except Exception as e:
             return f"Ошибка AI: {str(e)}"
+            
+             def chat_gpt_reply(self, message):
+        prompt = f"Ты деловой и экспертный AI-ассистент по маркетингу. Ответь на вопрос клиента подробно и с эмпатией:\n{message}"
+        return self.generate_reply(prompt)
 
     def generate_brief(self, answers):
         combined = "\n".join([f"{i+1}. {q}\nОтвет: {a}" for i, (q, a) in enumerate(zip(questions, answers))])
