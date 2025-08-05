@@ -1,4 +1,4 @@
-# index.py с включённым AI-чатом после брифа
+# index.py с сохранением состояний и командами /reset и /state
 from http.server import BaseHTTPRequestHandler
 import json
 import os
@@ -8,6 +8,8 @@ import tempfile
 import shutil
 from openai import OpenAI
 
+STATE_FILE = "/tmp/user_states.json"
+
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
@@ -15,7 +17,13 @@ client = OpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/
 
 ADMIN_CHAT_ID = 292012626  # @yudanov_g
 
-user_states = {}
+# Загрузка состояний из файла при запуске
+if os.path.exists(STATE_FILE):
+    with open(STATE_FILE, "r") as f:
+        user_states = json.load(f)
+else:
+    user_states = {}
+
 questions = [
     "Как вас зовут? Напишите ФИО?",
     "Наименование бренда, продукта или услуги?",
@@ -32,7 +40,7 @@ class handler(BaseHTTPRequestHandler):
         update = json.loads(body)
 
         message = update.get("message", {})
-        chat_id = message.get("chat", {}).get("id")
+        chat_id = str(message.get("chat", {}).get("id"))  # ключ как строка
         user_text = message.get("text", "")
 
         if chat_id:
@@ -43,6 +51,14 @@ class handler(BaseHTTPRequestHandler):
                 reply = "Здравствуйте! Я задам вам всего 6 вопросов, которые помогут понять горизонты нашего совместного сотрудничества.\n" + questions[0]
                 self.send_typing(chat_id)
                 self.send_message(chat_id, reply)
+
+            elif user_text == "/reset":
+                user_states[chat_id] = {"step": 0, "answers": [], "mode": "brief"}
+                self.save_states()
+                self.send_message(chat_id, "Ваше состояние сброшено. Напишите /start, чтобы начать заново.")
+
+            elif user_text == "/state":
+                self.send_message(chat_id, f"Ваше текущее состояние:\n{json.dumps(state, ensure_ascii=False, indent=2)}")
 
             elif state.get("mode") == "chat":
                 self.send_typing(chat_id)
@@ -80,20 +96,25 @@ class handler(BaseHTTPRequestHandler):
                     self.send_message(chat_id, "Специалисты уже получили бриф. Ожидайте обратной связи. Или можем просто поболтать о рекламе")
 
             user_states[chat_id] = state
+            self.save_states()
 
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
 
+    def save_states(self):
+        with open(STATE_FILE, "w") as f:
+            json.dump(user_states, f)
+
     def send_message(self, chat_id, text):
         requests.post(f"{TELEGRAM_API_URL}/sendMessage", json={
-            "chat_id": chat_id,
+            "chat_id": int(chat_id),
             "text": text
         })
 
     def send_typing(self, chat_id):
         requests.post(f"{TELEGRAM_API_URL}/sendChatAction", json={
-            "chat_id": chat_id,
+            "chat_id": int(chat_id),
             "action": "typing"
         })
 
@@ -142,6 +163,6 @@ class handler(BaseHTTPRequestHandler):
         print("📤 Пытаюсь отправить PDF в Telegram...")
         with open(pdf_path, 'rb') as f:
             response = requests.post(f"{TELEGRAM_API_URL}/sendDocument", data={
-                "chat_id": chat_id
+                "chat_id": int(chat_id)
             }, files={"document": f})
         print("📤 Ответ Telegram sendDocument:", response.status_code, response.text)
