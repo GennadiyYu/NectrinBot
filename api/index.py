@@ -1,4 +1,4 @@
-# index.py с сохранением состояний и командами /reset и /state
+# index.py с благодарностью после последнего ответа и простым переходом к вопросам
 from http.server import BaseHTTPRequestHandler
 import json
 import os
@@ -17,7 +17,6 @@ client = OpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/
 
 ADMIN_CHAT_ID = 292012626  # @yudanov_g
 
-# Загрузка состояний из файла при запуске
 if os.path.exists(STATE_FILE):
     with open(STATE_FILE, "r") as f:
         user_states = json.load(f)
@@ -40,7 +39,7 @@ class handler(BaseHTTPRequestHandler):
         update = json.loads(body)
 
         message = update.get("message", {})
-        chat_id = str(message.get("chat", {}).get("id"))  # ключ как строка
+        chat_id = str(message.get("chat", {}).get("id"))
         user_text = message.get("text", "")
 
         if chat_id:
@@ -70,14 +69,12 @@ class handler(BaseHTTPRequestHandler):
                     state["answers"].append(user_text)
                     state["step"] += 1
                     if state["step"] < len(questions):
-                        question_text = questions[state["step"]]
-                        prompt = f"Поблагодари пользователя за ответ и деликатно задай следующий вопрос:\n'{question_text}'"
-                        ai_reply = self.generate_reply(prompt)
+                        next_question = questions[state["step"]]
                         self.send_typing(chat_id)
-                        self.send_message(chat_id, ai_reply)
+                        self.send_message(chat_id, next_question)
                     else:
                         self.send_typing(chat_id)
-                        self.send_message(chat_id, "Спасибо! Я отправил информацию нашему специалисту...")
+                        self.send_message(chat_id, "Спасибо за ваши ответы! Я отправил информацию нашему специалисту...")
                         brief_text = self.generate_brief(state["answers"])
                         try:
                             pdf_path = self.create_pdf(brief_text)
