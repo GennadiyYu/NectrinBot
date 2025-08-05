@@ -1,4 +1,4 @@
-# index.py с сохранением состояний и командами /reset и /state
+# index.py с оценкой ответов GPT (релевантность)
 from http.server import BaseHTTPRequestHandler
 import json
 import os
@@ -15,9 +15,8 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 client = OpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
 
-ADMIN_CHAT_ID = 292012626  # @yudanov_g
+ADMIN_CHAT_ID = 292012626
 
-# Загрузка состояний из файла при запуске
 if os.path.exists(STATE_FILE):
     with open(STATE_FILE, "r") as f:
         user_states = json.load(f)
@@ -40,7 +39,7 @@ class handler(BaseHTTPRequestHandler):
         update = json.loads(body)
 
         message = update.get("message", {})
-        chat_id = str(message.get("chat", {}).get("id"))  # ключ как строка
+        chat_id = str(message.get("chat", {}).get("id"))
         user_text = message.get("text", "")
 
         if chat_id:
@@ -67,30 +66,33 @@ class handler(BaseHTTPRequestHandler):
 
             else:
                 if state["step"] < len(questions):
-                    state["answers"].append(user_text)
-                    state["step"] += 1
-                    if state["step"] < len(questions):
-                        question_text = questions[state["step"]]
-                        prompt = f"Поблагодари пользователя за ответ и деликатно задай следующий вопрос:\n'{question_text}'"
-                        ai_reply = self.generate_reply(prompt)
-                        self.send_typing(chat_id)
-                        self.send_message(chat_id, ai_reply)
+                    current_question = questions[state["step"]]
+                    is_valid, feedback = self.evaluate_answer(current_question, user_text)
+                    if is_valid:
+                        state["answers"].append(user_text)
+                        state["step"] += 1
+                        if state["step"] < len(questions):
+                            next_q = questions[state["step"]]
+                            prompt = f"Поблагодари пользователя за ответ и деликатно задай следующий вопрос:\n'{next_q}'"
+                            ai_reply = self.generate_reply(prompt)
+                            self.send_typing(chat_id)
+                            self.send_message(chat_id, ai_reply)
+                        else:
+                            self.send_typing(chat_id)
+                            self.send_message(chat_id, "Спасибо! Я отправил информацию нашему специалисту...")
+                            brief_text = self.generate_brief(state["answers"])
+                            try:
+                                pdf_path = self.create_pdf(brief_text)
+                                self.send_pdf(ADMIN_CHAT_ID, pdf_path)
+                                os.remove(pdf_path)
+                                self.send_message(chat_id, "Вижу, что он уже получил документ и скоро с вами свяжется. Ожидайте обратную связь в ближайшие 24 часа")
+                                state["mode"] = "chat"
+                                self.send_message(chat_id, "А пока мы ждём, я готов обсудить с вами любые вопросы по рекламе, маркетингу и продвижению.")
+                            except Exception as e:
+                                self.send_message(chat_id, "Произошла ошибка. Менеджер уведомлён.")
                     else:
                         self.send_typing(chat_id)
-                        self.send_message(chat_id, "Спасибо! Я отправил информацию нашему специалисту...")
-                        brief_text = self.generate_brief(state["answers"])
-                        print("📄 Сгенерирован бриф:", brief_text[:200])
-                        try:
-                            pdf_path = self.create_pdf(brief_text)
-                            print("📄 PDF создан, путь:", pdf_path)
-                            self.send_pdf(ADMIN_CHAT_ID, pdf_path)
-                            os.remove(pdf_path)
-                            self.send_message(chat_id, "Вижу, что он уже получил документ и скоро с вами свяжется. Ожидайте обратную связь в ближайшие 24 часа")
-                            state["mode"] = "chat"
-                            self.send_message(chat_id, "А пока мы ждём, я готов обсудить с вами любые вопросы по рекламе, маркетингу и продвижению.")
-                        except Exception as e:
-                            print("❌ Ошибка при создании или отправке PDF:", str(e))
-                            self.send_message(chat_id, "Произошла ошибка. Менеджер уведомлён.")
+                        self.send_message(chat_id, feedback + f"\nПожалуйста, ответьте по теме.\n{current_question}")
 
                 else:
                     self.send_message(chat_id, "Специалисты уже получили бриф. Ожидайте обратной связи. Или можем просто поболтать о рекламе")
@@ -132,6 +134,17 @@ class handler(BaseHTTPRequestHandler):
         prompt = f"Ты деловой и экспертный AI-ассистент по маркетингу. Ответь на вопрос клиента подробно и с эмпатией:\n{message}"
         return self.generate_reply(prompt)
 
+    def evaluate_answer(self, question, answer):
+        prompt = f"Оцени ответ пользователя на предмет соответствия вопросу.\nВопрос: {question}\nОтвет: {answer}\n\nЕсли ответ по теме — скажи 'OK'. Если нет — объясни, почему, и попроси ответить по теме."
+        try:
+            response = self.generate_reply(prompt)
+            if response.strip().upper().startswith("OK"):
+                return True, ""
+            else:
+                return False, response.strip()
+        except:
+            return True, ""
+
     def generate_brief(self, answers):
         combined = "\n".join([f"{i+1}. {q}\nОтвет: {a}" for i, (q, a) in enumerate(zip(questions, answers))])
         prompt = f"Составь деловой проектный бриф по следующим ответам клиента:\n{combined}\n\nСтруктурируй текст с подзаголовками и деловым стилем."
@@ -160,9 +173,7 @@ class handler(BaseHTTPRequestHandler):
         return temp.name
 
     def send_pdf(self, chat_id, pdf_path):
-        print("📤 Пытаюсь отправить PDF в Telegram...")
         with open(pdf_path, 'rb') as f:
             response = requests.post(f"{TELEGRAM_API_URL}/sendDocument", data={
                 "chat_id": int(chat_id)
             }, files={"document": f})
-        print("📤 Ответ Telegram sendDocument:", response.status_code, response.text)
